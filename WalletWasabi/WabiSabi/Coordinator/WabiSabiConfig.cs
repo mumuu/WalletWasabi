@@ -92,10 +92,6 @@ public class WabiSabiConfig : ConfigBase
 
 	public int RoundParallelization { get; init; } = 1;
 
-	public bool WW200CompatibleLoadBalancing { get; init; } = false;
-
-	public double WW200CompatibleLoadBalancingInputSplit { get; init; } = 0.75;
-
 	public string CoordinatorIdentifier { get; set; } = "CoinJoinCoordinatorIdentifier";
 
 	public bool AllowP2wpkhInputs { get; init; } = true;
@@ -119,6 +115,9 @@ public class WabiSabiConfig : ConfigBase
 	public ImmutableSortedSet<ScriptType> AllowedInputTypes => GetScriptTypes(AllowP2wpkhInputs, AllowP2trInputs, false, false, false);
 
 	public ImmutableSortedSet<ScriptType> AllowedOutputTypes => GetScriptTypes(AllowP2wpkhOutputs, AllowP2trOutputs, AllowP2pkhOutputs, AllowP2shOutputs, AllowP2wshOutputs);
+
+	public bool PublishAsOnionService { get; init; }
+	public string? OnionServicePrivateKey { get; set; }
 
 	public Script GetNextCleanCoordinatorScript() => DeriveCoordinatorScript(CoordinatorExtPubKeyCurrentDepth);
 

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Net.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.Timeouts;
@@ -15,14 +16,17 @@ using WalletWasabi.BitcoinRpc;
 using WalletWasabi.Cache;
 using WalletWasabi.Discoverability;
 using WalletWasabi.Extensions;
+using WalletWasabi.FeeRateEstimation;
 using WalletWasabi.Helpers;
 using WalletWasabi.Logging;
+using WalletWasabi.Models;
 using WalletWasabi.Serialization;
-using WalletWasabi.Userfacing;
+using WalletWasabi.Tor;
 using WalletWasabi.WabiSabi.Coordinator;
 using WalletWasabi.WabiSabi.Coordinator.DoSPrevention;
 using WalletWasabi.WabiSabi.Coordinator.Rounds;
 using WalletWasabi.WabiSabi.Coordinator.Statistics;
+using WalletWasabi.WebClients.Wasabi;
 using Arena = WalletWasabi.WabiSabi.Coordinator.Rounds.Arena;
 
 [assembly: ApiController]
@@ -55,6 +59,12 @@ public class Startup(IConfiguration configuration)
 
 		WabiSabiConfig config = WabiSabiConfig.LoadFile(Path.Combine(dataDir, "Config.json"));
 		services.AddSingleton(config);
+
+		var torSetting = new TorSettings(dataDir,
+			distributionFolderPath: EnvironmentHelpers.GetFullBaseDirectory(),
+			true, TorMode.Enabled, 37155, 37156);
+
+		services.AddSingleton(torSetting);
 
 		services.AddSingleton<IdempotencyRequestCache>();
 		services.AddSingleton<IRPCClient>(provider =>
@@ -95,17 +105,30 @@ public class Startup(IConfiguration configuration)
 			new Warden(
 				Path.Combine(dataDir, "Prison.txt"),
 				s.GetRequiredService<WabiSabiConfig>()));
-		services.AddSingleton<CoinJoinFeeRateStatStore>(s =>
-			CoinJoinFeeRateStatStore.LoadFromFile(
-				Path.Combine(dataDir, "CoinJoinFeeRateStatStore.txt"),
-				s.GetRequiredService<WabiSabiConfig>(),
-				s.GetRequiredService<IRPCClient>()
-				));
 		services.AddSingleton<RoundParameterFactory>();
 		services.AddBackgroundService<Arena>();
 
-		services.AddSingleton<AnnouncerConfig>(_ => config.AnnouncerConfig);
-		services.AddBackgroundService<CoordinatorAnnouncer>();
+		if (config.AnnouncerConfig.IsEnabled)
+		{
+			services.AddSingleton<AnnouncerConfig>(_ => config.AnnouncerConfig);
+			services.AddBackgroundService<CoordinatorAnnouncer>();
+		}
+
+		services.AddSingleton<IHttpClientFactory>(s =>
+			config.PublishAsOnionService
+			? new OnionHttpClientFactory(torSetting.SocksEndpoint.ToUri("socks5"))
+			: new HttpClientFactory()
+			);
+
+		services.AddSingleton<FeeRateProvider>(s =>
+		{
+			var httpClientFactory = s.GetRequiredService<IHttpClientFactory>();
+			return FeeRateProviders.Composed([
+				FeeRateProviders.RpcAsync(s.GetRequiredService<IRPCClient>()),
+				FeeRateProviders.MempoolSpaceAsync(httpClientFactory),
+				FeeRateProviders.BlockstreamAsync(httpClientFactory)
+			]);
+		});
 
 		services.AddSingleton<IdempotencyRequestCache>();
 		services.AddStartupTask<StartupTask>();
@@ -116,6 +139,11 @@ public class Startup(IConfiguration configuration)
 				{
 					Timeout = TimeSpan.FromSeconds(5)
 				});
+
+		if (config.PublishAsOnionService)
+		{
+			services.AddBackgroundService<TorProcessManagerService>();
+		}
 	}
 
 	[SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification = "This method gets called by the runtime. Use this method to configure the HTTP request pipeline")]

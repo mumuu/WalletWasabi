@@ -3,7 +3,6 @@ using System.Net;
 using System.Text.Json.Nodes;
 using NBitcoin;
 using WalletWasabi.Discoverability;
-using WalletWasabi.Helpers;
 using WalletWasabi.Userfacing;
 using WalletWasabi.WabiSabi.Coordinator;
 
@@ -62,8 +61,6 @@ public static partial class Encode
 			("CoordinatorExtPubKeyCurrentDepth", Int(cfg.CoordinatorExtPubKeyCurrentDepth) ),
 			("MaxSuggestedAmountBase", MoneyBitcoins(cfg.MaxSuggestedAmountBase) ),
 			("RoundParallelization", Int(cfg.RoundParallelization) ),
-			("WW200CompatibleLoadBalancing", Bool(cfg.WW200CompatibleLoadBalancing) ),
-			("WW200CompatibleLoadBalancingInputSplit", Double(cfg.WW200CompatibleLoadBalancingInputSplit) ),
 			("CoordinatorIdentifier", String(cfg.CoordinatorIdentifier) ),
 			("AllowP2wpkhInputs", Bool(cfg.AllowP2wpkhInputs) ),
 			("AllowP2trInputs", Bool(cfg.AllowP2trInputs)),
@@ -74,6 +71,8 @@ public static partial class Encode
 			("AllowP2wshOutputs", Bool(cfg.AllowP2wshOutputs)),
 			("DelayTransactionSigning", Bool(cfg.DelayTransactionSigning)),
 			("AnnouncerConfig", AnnouncerConfig(cfg.AnnouncerConfig)),
+			("PublishAsOnionService", Bool(cfg.PublishAsOnionService)),
+			("OnionServicePrivateKey", Optional(cfg.OnionServicePrivateKey, String))
 		]);
 }
 
@@ -141,8 +140,6 @@ public static partial class Decode
 			CoordinatorExtPubKeyCurrentDepth = get.Required("CoordinatorExtPubKeyCurrentDepth", Int),
 			MaxSuggestedAmountBase = get.Required("MaxSuggestedAmountBase", MoneyBitcoins),
 			RoundParallelization = get.Required("RoundParallelization", Int),
-			WW200CompatibleLoadBalancing = get.Required("WW200CompatibleLoadBalancing", Bool),
-			WW200CompatibleLoadBalancingInputSplit = get.Required("WW200CompatibleLoadBalancingInputSplit", Double),
 			CoordinatorIdentifier = get.Required("CoordinatorIdentifier", String),
 			AllowP2wpkhInputs = get.Required("AllowP2wpkhInputs", Bool),
 			AllowP2trInputs = get.Required("AllowP2trInputs", Bool),
@@ -152,6 +149,8 @@ public static partial class Decode
 			AllowP2shOutputs = get.Required("AllowP2shOutputs", Bool),
 			AllowP2wshOutputs = get.Required("AllowP2wshOutputs", Bool),
 			DelayTransactionSigning = get.Required("DelayTransactionSigning", Bool),
-			AnnouncerConfig = get.Required("AnnouncerConfig", AnnouncerConfig)
+			AnnouncerConfig = get.Required("AnnouncerConfig", AnnouncerConfig),
+			PublishAsOnionService = get.Optional("PublishAsOnionService", Bool, true),
+			OnionServicePrivateKey = get.Optional("OnionServicePrivateKey", String)
 		});
 }
